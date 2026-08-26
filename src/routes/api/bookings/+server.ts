@@ -83,9 +83,9 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 		}
 
 		const eventType = await db
-			.prepare('SELECT id, name, duration_minutes as duration, description, invite_calendar FROM event_types WHERE user_id = ? AND slug = ? AND is_active = 1')
+			.prepare('SELECT id, name, duration_minutes as duration, description, invite_calendar, location_type, location_details FROM event_types WHERE user_id = ? AND slug = ? AND is_active = 1')
 			.bind(user.id, eventSlug)
-			.first<{ id: string; name: string; duration: number; description: string; invite_calendar: string | null }>();
+			.first<{ id: string; name: string; duration: number; description: string; invite_calendar: string | null; location_type: string | null; location_details: string | null }>();
 
 		if (!eventType) {
 			throw error(404, 'Event type not found or inactive');
@@ -135,7 +135,11 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 		let outlookEventId: string | null = null;
 		let meetingUrl: string | null = null;
 
-		if (inviteCalendar === 'google') {
+		// Self-hosted Meet room: use the event type's permanent room link; no calendar event is created
+		const usesMeetRoom = eventType.location_type === 'meet' && !!eventType.location_details;
+		if (usesMeetRoom) {
+			meetingUrl = eventType.location_details;
+		} else if (inviteCalendar === 'google') {
 			// Create Google Calendar event with Google Meet
 			try {
 				const accessToken = await getValidAccessToken(
@@ -266,7 +270,7 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 					startTime: startDateTime,
 					endTime: endDateTime,
 					meetingUrl,
-					meetingType: (inviteCalendar === 'outlook' ? 'teams' : 'google_meet') as 'google_meet' | 'teams',
+					meetingType: (usesMeetRoom ? 'meet' : inviteCalendar === 'outlook' ? 'teams' : 'google_meet') as 'google_meet' | 'teams' | 'meet',
 					bookingId,
 					hostName: user.name,
 					hostEmail: user.email,
@@ -332,7 +336,7 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 			success: true,
 			bookingId: result.meta.last_row_id,
 			meetingUrl,
-			meetingType: inviteCalendar === 'outlook' ? 'teams' : 'google_meet'
+			meetingType: usesMeetRoom ? 'meet' : inviteCalendar === 'outlook' ? 'teams' : 'google_meet'
 		});
 	} catch (err: any) {
 		console.error('Booking creation error:', err);

@@ -11,7 +11,7 @@ export interface BookingEmailData {
 	startTime: Date;
 	endTime: Date;
 	meetingUrl: string | null;
-	meetingType?: 'google_meet' | 'teams';
+	meetingType?: 'google_meet' | 'teams' | 'meet';
 	bookingId: string | number;
 	hostName: string;
 	hostEmail: string;

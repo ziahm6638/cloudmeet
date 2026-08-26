@@ -21,7 +21,7 @@ export function generateAdminNotificationEmail(data: BookingEmailData): string {
 		? generateAttendeeNotesCard(data.attendeeName, data.attendeeNotes)
 		: '';
 
-	const meetingLabel = data.meetingType === 'teams' ? 'Join Microsoft Teams Meeting' : 'Join Google Meet';
+	const meetingLabel = data.meetingType === 'teams' ? 'Join Microsoft Teams Meeting' : data.meetingType === 'meet' ? 'Join Video Meeting' : 'Join Google Meet';
 	const actionButton = data.meetingUrl
 		? generateActionButton(data.meetingUrl, meetingLabel, brandColor)
 		: '';

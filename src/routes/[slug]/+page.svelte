@@ -47,7 +47,7 @@
 	let bookingStatus = $state<'idle' | 'submitting' | 'success' | 'error'>('idle');
 	let bookingError = $state('');
 	let meetingUrl = $state<string | null>(null);
-	let meetingType = $state<'google_meet' | 'teams'>('google_meet');
+	let meetingType = $state<'google_meet' | 'teams' | 'meet'>('google_meet');
 
 	// Track which dates have available slots
 	let availableDates = $state<Set<string>>(new Set());
@@ -241,7 +241,7 @@
 				throw new Error(errData.message || 'Failed to create booking');
 			}
 
-			const result = await response.json() as { meetingUrl?: string; meetingType?: 'google_meet' | 'teams' };
+			const result = await response.json() as { meetingUrl?: string; meetingType?: 'google_meet' | 'teams' | 'meet' };
 			meetingUrl = result.meetingUrl || null;
 			meetingType = result.meetingType || 'google_meet';
 			bookingStatus = 'success';

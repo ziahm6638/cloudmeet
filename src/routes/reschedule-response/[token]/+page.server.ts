@@ -92,7 +92,7 @@ export const actions: Actions = {
 					`SELECT p.id, p.booking_id, p.proposed_start_time, p.proposed_end_time, p.status,
 					b.attendee_name, b.attendee_email, b.google_event_id, b.attendee_notes,
 					b.start_time as original_start_time, b.end_time as original_end_time,
-					e.id as event_type_id, e.name as event_name, e.description as event_description, e.duration_minutes,
+					e.id as event_type_id, e.name as event_name, e.description as event_description, e.duration_minutes, e.location_type, e.location_details,
 					u.id as user_id, u.name as host_name, u.email as host_email, u.contact_email, u.brand_color, u.settings
 					FROM reschedule_proposals p
 					JOIN bookings b ON p.booking_id = b.id
@@ -116,6 +116,8 @@ export const actions: Actions = {
 					event_type_id: string;
 					event_name: string;
 					event_description: string | null;
+					location_type: string | null;
+					location_details: string | null;
 					duration_minutes: number;
 					user_id: string;
 					host_name: string;
@@ -147,8 +149,11 @@ export const actions: Actions = {
 			// Create new Google Calendar event
 			let newMeetingUrl: string | null = null;
 			let newGoogleEventId: string | null = null;
+			// Self-hosted Meet rooms are permanent: reuse the room link and skip the calendar round-trip
+			const usesMeetRoom = proposal.location_type === 'meet' && !!proposal.location_details;
+			if (usesMeetRoom) newMeetingUrl = proposal.location_details;
 
-			try {
+			if (!usesMeetRoom) try {
 				const accessToken = await getValidAccessToken(
 					db,
 					proposal.user_id,
@@ -217,6 +222,7 @@ export const actions: Actions = {
 							oldStartTime: new Date(proposal.original_start_time),
 							oldEndTime: new Date(proposal.original_end_time),
 							meetingUrl: newMeetingUrl,
+							meetingType: (usesMeetRoom ? 'meet' : 'google_meet') as 'google_meet' | 'teams' | 'meet',
 							bookingId: proposal.booking_id,
 							hostName: proposal.host_name,
 							hostEmail: proposal.host_email,

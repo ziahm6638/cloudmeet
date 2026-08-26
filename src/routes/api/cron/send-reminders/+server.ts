@@ -30,7 +30,7 @@ export const GET = async ({ url, platform }: RequestEvent) => {
 			.prepare(`
 				SELECT se.id, se.booking_id, se.template_type, se.scheduled_for,
 					b.attendee_name, b.attendee_email, b.start_time, b.end_time, b.meeting_url, b.status,
-					e.name as event_name, e.description as event_description,
+					e.name as event_name, e.description as event_description, e.location_type,
 					u.id as user_id, u.name as host_name, u.email as host_email, u.contact_email, u.settings, u.brand_color
 				FROM scheduled_emails se
 				JOIN bookings b ON se.booking_id = b.id
@@ -53,6 +53,7 @@ export const GET = async ({ url, platform }: RequestEvent) => {
 				start_time: string;
 				end_time: string;
 				meeting_url: string | null;
+				location_type: string | null;
 				status: string;
 				event_name: string;
 				event_description: string | null;
@@ -124,6 +125,7 @@ export const GET = async ({ url, platform }: RequestEvent) => {
 							startTime: new Date(email.start_time),
 							endTime: new Date(email.end_time),
 							meetingUrl: email.meeting_url,
+							meetingType: (email.location_type === 'meet' ? 'meet' : 'google_meet') as 'google_meet' | 'teams' | 'meet',
 							bookingId: email.booking_id,
 							hostName: email.host_name,
 							hostEmail: email.host_email,

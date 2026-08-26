@@ -104,7 +104,15 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 		let newCalendarEventId: string | null = null;
 		let newMeetingUrl: string | null = null;
 
-		try {
+		// Self-hosted Meet rooms are permanent: keep the same link, no calendar round-trip
+		const meetRoom = await db
+			.prepare('SELECT location_details FROM event_types WHERE id = ? AND location_type = ?')
+			.bind(originalBooking.event_type_id, 'meet')
+			.first<{ location_details: string | null }>();
+		const usesMeetRoom = !!meetRoom?.location_details;
+		if (usesMeetRoom) newMeetingUrl = meetRoom!.location_details;
+
+		if (!usesMeetRoom) try {
 			const accessToken = await getValidAccessToken(
 				db,
 				originalBooking.user_id,
@@ -220,6 +228,7 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 							oldStartTime: oldStartDateTime,
 							oldEndTime: oldEndDateTime,
 							meetingUrl: newMeetingUrl,
+							meetingType: (usesMeetRoom ? 'meet' : 'google_meet') as 'google_meet' | 'teams' | 'meet',
 							bookingId: originalBooking.id,
 							hostName: originalBooking.host_name,
 							hostEmail: originalBooking.host_email,
@@ -252,6 +261,7 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 							oldStartTime: oldStartDateTime,
 							oldEndTime: oldEndDateTime,
 							meetingUrl: newMeetingUrl,
+							meetingType: (usesMeetRoom ? 'meet' : 'google_meet') as 'google_meet' | 'teams' | 'meet',
 							bookingId: originalBooking.id,
 							hostName: originalBooking.host_name,
 							hostEmail: originalBooking.host_email,
@@ -297,7 +307,8 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 		return json({
 			success: true,
 			bookingId,
-			meetingUrl: newMeetingUrl
+			meetingUrl: newMeetingUrl,
+			meetingType: (usesMeetRoom ? 'meet' : 'google_meet') as 'google_meet' | 'teams' | 'meet'
 		});
 	} catch (err: any) {
 		console.error('Reschedule error:', err);

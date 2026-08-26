@@ -4,7 +4,7 @@
 		selectedDate: string;
 		selectedSlot: { start: string; end: string };
 		meetingUrl: string | null;
-		meetingType?: 'google_meet' | 'teams';
+		meetingType?: 'google_meet' | 'teams' | 'meet';
 		brandColor: string;
 		formatTimeRange: (start: string, end: string) => string;
 		formatSelectedDate: (dateStr: string) => string;
@@ -21,7 +21,7 @@
 		formatSelectedDate
 	}: Props = $props();
 
-	const meetingLabel = meetingType === 'teams' ? 'Join Microsoft Teams Meeting' : 'Join Google Meet';
+	const meetingLabel = meetingType === 'teams' ? 'Join Microsoft Teams Meeting' : meetingType === 'meet' ? 'Join Video Meeting' : 'Join Google Meet';
 </script>
 
 <div class="bg-white rounded-2xl shadow-lg p-6 sm:p-8 max-w-md w-full mx-2">

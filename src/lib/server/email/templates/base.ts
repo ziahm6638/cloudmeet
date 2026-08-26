@@ -69,11 +69,11 @@ export function generateMeetingDetailsCard(options: {
 	formattedDate: string;
 	formattedTime: string;
 	meetingUrl?: string | null;
-	meetingType?: 'google_meet' | 'teams';
+	meetingType?: 'google_meet' | 'teams' | 'meet';
 	brandColor?: string;
 }): string {
 	const { eventName, eventDescription, formattedDate, formattedTime, meetingUrl, meetingType = 'google_meet', brandColor = '#3b82f6' } = options;
-	const meetingLabel = meetingType === 'teams' ? 'Microsoft Teams' : 'Google Meet';
+	const meetingLabel = meetingType === 'teams' ? 'Microsoft Teams' : meetingType === 'meet' ? 'Video Meeting' : 'Google Meet';
 
 	return `
 <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb; margin-bottom: 30px;">

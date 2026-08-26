@@ -32,7 +32,7 @@ export function generateBookingEmail(data: BookingEmailData): string {
 		<h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700;">Meeting Confirmed!</h1>
 	`;
 
-	const meetingLabel = data.meetingType === 'teams' ? 'Join Microsoft Teams Meeting' : 'Join Google Meet';
+	const meetingLabel = data.meetingType === 'teams' ? 'Join Microsoft Teams Meeting' : data.meetingType === 'meet' ? 'Join Video Meeting' : 'Join Google Meet';
 
 	const meetingDetails = generateMeetingDetailsCard({
 		eventName: data.eventName,
