@@ -14,6 +14,11 @@ declare global {
 				APP_URL?: string;
 				ADMIN_EMAIL?: string;
 				RESEND_API_KEY?: string;
+				MEET_API_URL?: string;
+				MEET_CLIENT_ID?: string;
+				MEET_CLIENT_SECRET?: string;
+				MEET_OWNER_EMAIL?: string;
+				MEET_ROOM_ACCESS?: string;
 				EMAIL_FROM?: string;
 				TURNSTILE_SECRET_KEY?: string;
 				CRON_SECRET?: string;

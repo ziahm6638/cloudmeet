@@ -8,6 +8,7 @@ import type { RequestHandler } from './$types';
 import { createCalendarEvent, getValidAccessToken } from '$lib/server/google-calendar';
 import { createOutlookCalendarEvent, getValidOutlookAccessToken } from '$lib/server/outlook-calendar';
 import { sendBookingEmail, sendAdminNotificationEmail, getEmailTemplates, isEmailEnabled, type EmailTemplateType } from '$lib/server/email';
+import { createMeetRoom, isMeetConfigured } from '$lib/server/meet';
 import { isValidEmail, validateLength, validateFields, MAX_LENGTHS } from '$lib/server/validation';
 
 export const POST: RequestHandler = async ({ request, platform }) => {
@@ -138,7 +139,15 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 		// Self-hosted Meet room: use the event type's permanent room link; no calendar event is created
 		const usesMeetRoom = eventType.location_type === 'meet' && !!eventType.location_details;
 		if (usesMeetRoom) {
-			meetingUrl = eventType.location_details;
+			meetingUrl = eventType.location_details; // permanent room as fallback
+			if (isMeetConfigured(env)) {
+				try {
+					const room = await createMeetRoom(env, `${eventType.name} with ${attendeeName}`);
+					meetingUrl = room.url;
+				} catch (err) {
+					console.error('Meet room creation failed; using permanent room:', err);
+				}
+			}
 		} else if (inviteCalendar === 'google') {
 			// Create Google Calendar event with Google Meet
 			try {

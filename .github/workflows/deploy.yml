@@ -152,6 +152,10 @@ jobs:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
           MICROSOFT_CLIENT_ID: ${{ secrets.MICROSOFT_CLIENT_ID }}
           MICROSOFT_CLIENT_SECRET: ${{ secrets.MICROSOFT_CLIENT_SECRET }}
+          MEET_API_URL: ${{ secrets.MEET_API_URL }}
+          MEET_CLIENT_ID: ${{ secrets.MEET_CLIENT_ID }}
+          MEET_CLIENT_SECRET: ${{ secrets.MEET_CLIENT_SECRET }}
+          MEET_OWNER_EMAIL: ${{ secrets.MEET_OWNER_EMAIL }}
         run: |
           # Add env vars to wrangler.toml before deploy
           cat >> wrangler.toml << EOF
@@ -167,6 +171,10 @@ jobs:
           CRON_SECRET = "$CRON_SECRET"
           MICROSOFT_CLIENT_ID = "$MICROSOFT_CLIENT_ID"
           MICROSOFT_CLIENT_SECRET = "$MICROSOFT_CLIENT_SECRET"
+          MEET_API_URL = "$MEET_API_URL"
+          MEET_CLIENT_ID = "$MEET_CLIENT_ID"
+          MEET_CLIENT_SECRET = "$MEET_CLIENT_SECRET"
+          MEET_OWNER_EMAIL = "$MEET_OWNER_EMAIL"
           EOF
 
           echo "Final wrangler.toml:"
