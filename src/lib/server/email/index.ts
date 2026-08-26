@@ -1,6 +1,6 @@
 /**
- * Email service using Emailit API
- * https://docs.emailit.com/emails
+ * Email service using Resend
+ * https://resend.com/docs/api-reference/emails/send-email
  *
  * This is the main entry point for the email module.
  * It re-exports types, formatters, and templates, and provides send functions.
@@ -27,6 +27,7 @@ export {
 
 import type { BookingEmailData, RescheduleEmailData, EmailTemplate, EmailTemplateType } from './types';
 import { replaceSubjectVariables } from './formatters';
+import { sendViaResend } from './resend';
 import {
 	generateBookingEmail,
 	generateBookingEmailText,
@@ -49,7 +50,7 @@ interface EmailConfig {
 }
 
 /**
- * Send booking confirmation email via Emailit API
+ * Send booking confirmation email via Resend
  */
 export async function sendBookingEmail(
 	data: BookingEmailData,
@@ -63,26 +64,15 @@ export async function sendBookingEmail(
 		: `Meeting Confirmed: ${data.eventName} with ${data.hostName}`;
 
 	try {
-		const response = await fetch('https://api.emailit.com/v1/emails', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Authorization: `Bearer ${config.apiKey}`
-			},
-			body: JSON.stringify({
-				from: `${data.hostName} <${config.from}>`,
-				to: data.attendeeEmail,
-				reply_to: config.replyTo,
-				subject,
-				text: textBody,
-				html: htmlBody
-			})
-		});
-
-		if (!response.ok) {
-			const error = await response.text();
-			throw new Error(`Failed to send email: ${error}`);
-		}
+		await sendViaResend({
+			apiKey: config.apiKey,
+			from: `${data.hostName} <${config.from}>`,
+			to: data.attendeeEmail,
+			replyTo: config.replyTo,
+			subject,
+			text: textBody,
+			html: htmlBody
+		}, 'email');
 	} catch (error) {
 		console.error('Email sending error:', error);
 		throw error;
@@ -103,25 +93,14 @@ export async function sendCancellationEmail(
 		: `Meeting Cancelled: ${data.eventName}`;
 
 	try {
-		const response = await fetch('https://api.emailit.com/v1/emails', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Authorization: `Bearer ${config.apiKey}`
-			},
-			body: JSON.stringify({
-				from: `${data.hostName} <${config.from}>`,
-				to: data.attendeeEmail,
-				reply_to: config.replyTo,
-				subject,
-				html: htmlBody
-			})
-		});
-
-		if (!response.ok) {
-			const error = await response.text();
-			throw new Error(`Failed to send cancellation email: ${error}`);
-		}
+		await sendViaResend({
+			apiKey: config.apiKey,
+			from: `${data.hostName} <${config.from}>`,
+			to: data.attendeeEmail,
+			replyTo: config.replyTo,
+			subject,
+			html: htmlBody
+		}, 'cancellation email');
 	} catch (error) {
 		console.error('Cancellation email error:', error);
 		throw error;
@@ -142,25 +121,14 @@ export async function sendRescheduleEmail(
 		: `Meeting Rescheduled: ${data.eventName} with ${data.hostName}`;
 
 	try {
-		const response = await fetch('https://api.emailit.com/v1/emails', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Authorization: `Bearer ${config.apiKey}`
-			},
-			body: JSON.stringify({
-				from: `${data.hostName} <${config.from}>`,
-				to: data.attendeeEmail,
-				reply_to: config.replyTo,
-				subject,
-				html: htmlBody
-			})
-		});
-
-		if (!response.ok) {
-			const error = await response.text();
-			throw new Error(`Failed to send reschedule email: ${error}`);
-		}
+		await sendViaResend({
+			apiKey: config.apiKey,
+			from: `${data.hostName} <${config.from}>`,
+			to: data.attendeeEmail,
+			replyTo: config.replyTo,
+			subject,
+			html: htmlBody
+		}, 'reschedule email');
 	} catch (error) {
 		console.error('Reschedule email error:', error);
 		throw error;
@@ -182,25 +150,14 @@ export async function sendReminderEmail(
 		: getDefaultReminderSubject(data, reminderType);
 
 	try {
-		const response = await fetch('https://api.emailit.com/v1/emails', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Authorization: `Bearer ${config.apiKey}`
-			},
-			body: JSON.stringify({
-				from: `${data.hostName} <${config.from}>`,
-				to: data.attendeeEmail,
-				reply_to: config.replyTo,
-				subject,
-				html: htmlBody
-			})
-		});
-
-		if (!response.ok) {
-			const error = await response.text();
-			throw new Error(`Failed to send reminder email: ${error}`);
-		}
+		await sendViaResend({
+			apiKey: config.apiKey,
+			from: `${data.hostName} <${config.from}>`,
+			to: data.attendeeEmail,
+			replyTo: config.replyTo,
+			subject,
+			html: htmlBody
+		}, 'reminder email');
 	} catch (error) {
 		console.error('Reminder email error:', error);
 		throw error;
@@ -218,24 +175,13 @@ export async function sendAdminNotificationEmail(
 	const htmlBody = generateAdminNotificationEmail(data);
 
 	try {
-		const response = await fetch('https://api.emailit.com/v1/emails', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Authorization: `Bearer ${config.apiKey}`
-			},
-			body: JSON.stringify({
-				from: `CloudMeet <${config.from}>`,
-				to: adminEmail,
-				subject: `New Booking: ${data.eventName} with ${data.attendeeName}`,
-				html: htmlBody
-			})
-		});
-
-		if (!response.ok) {
-			const error = await response.text();
-			throw new Error(`Failed to send admin notification: ${error}`);
-		}
+		await sendViaResend({
+			apiKey: config.apiKey,
+			from: `CloudMeet <${config.from}>`,
+			to: adminEmail,
+			subject: `New Booking: ${data.eventName} with ${data.attendeeName}`,
+			html: htmlBody
+		}, 'admin notification');
 	} catch (error) {
 		console.error('Admin notification email error:', error);
 		throw error;
@@ -253,24 +199,13 @@ export async function sendAdminCancellationNotification(
 	const htmlBody = generateAdminCancellationEmail(data);
 
 	try {
-		const response = await fetch('https://api.emailit.com/v1/emails', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Authorization: `Bearer ${config.apiKey}`
-			},
-			body: JSON.stringify({
-				from: `CloudMeet <${config.from}>`,
-				to: adminEmail,
-				subject: `Booking Cancelled: ${data.eventName} with ${data.attendeeName}`,
-				html: htmlBody
-			})
-		});
-
-		if (!response.ok) {
-			const error = await response.text();
-			throw new Error(`Failed to send admin cancellation notification: ${error}`);
-		}
+		await sendViaResend({
+			apiKey: config.apiKey,
+			from: `CloudMeet <${config.from}>`,
+			to: adminEmail,
+			subject: `Booking Cancelled: ${data.eventName} with ${data.attendeeName}`,
+			html: htmlBody
+		}, 'admin cancellation notification');
 	} catch (error) {
 		console.error('Admin cancellation notification error:', error);
 		throw error;
@@ -288,24 +223,13 @@ export async function sendAdminRescheduleNotification(
 	const htmlBody = generateAdminRescheduleEmail(data);
 
 	try {
-		const response = await fetch('https://api.emailit.com/v1/emails', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Authorization: `Bearer ${config.apiKey}`
-			},
-			body: JSON.stringify({
-				from: `CloudMeet <${config.from}>`,
-				to: adminEmail,
-				subject: `Booking Rescheduled: ${data.eventName} with ${data.attendeeName}`,
-				html: htmlBody
-			})
-		});
-
-		if (!response.ok) {
-			const error = await response.text();
-			throw new Error(`Failed to send admin reschedule notification: ${error}`);
-		}
+		await sendViaResend({
+			apiKey: config.apiKey,
+			from: `CloudMeet <${config.from}>`,
+			to: adminEmail,
+			subject: `Booking Rescheduled: ${data.eventName} with ${data.attendeeName}`,
+			html: htmlBody
+		}, 'admin reschedule notification');
 	} catch (error) {
 		console.error('Admin reschedule notification error:', error);
 		throw error;

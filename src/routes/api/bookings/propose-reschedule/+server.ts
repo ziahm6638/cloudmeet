@@ -6,6 +6,7 @@
 import { json, error, type RequestEvent } from '@sveltejs/kit';
 import { getCurrentUser } from '$lib/server/auth';
 import { getEmailTemplates, isEmailEnabled } from '$lib/server/email';
+import { sendViaResend } from '$lib/server/email/resend';
 
 export const POST = async (event: RequestEvent) => {
 	const env = event.platform?.env;
@@ -98,7 +99,8 @@ export const POST = async (event: RequestEvent) => {
 			.run();
 
 		// Send email to attendee with proposal
-		if (env.EMAILIT_API_KEY) {
+		if (!env.RESEND_API_KEY) console.warn("RESEND_API_KEY is not set; skipping emails");
+		if (env.RESEND_API_KEY) {
 			try {
 				// Parse user settings for time format
 				let timeFormat: '12h' | '24h' = '12h';
@@ -132,7 +134,7 @@ export const POST = async (event: RequestEvent) => {
 						brandColor: booking.brand_color || '#3b82f6'
 					},
 					{
-						apiKey: env.EMAILIT_API_KEY,
+						apiKey: env.RESEND_API_KEY,
 						from: env.EMAIL_FROM || booking.host_email,
 						replyTo: booking.contact_email || booking.host_email
 					}
@@ -271,23 +273,12 @@ async function sendRescheduleProposalEmail(data: RescheduleProposalEmailData, co
 </html>
 	`;
 
-	const response = await fetch('https://api.emailit.com/v1/emails', {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			Authorization: `Bearer ${config.apiKey}`
-		},
-		body: JSON.stringify({
-			from: `${data.hostName} <${config.from}>`,
-			to: data.attendeeEmail,
-			reply_to: config.replyTo,
-			subject: `Reschedule Request: ${data.eventName} with ${data.hostName}`,
-			html: htmlBody
-		})
-	});
-
-	if (!response.ok) {
-		const errorText = await response.text();
-		throw new Error(`Failed to send email: ${errorText}`);
-	}
+	await sendViaResend({
+		apiKey: config.apiKey,
+		from: `${data.hostName} <${config.from}>`,
+		to: data.attendeeEmail,
+		replyTo: config.replyTo,
+		subject: `Reschedule Request: ${data.eventName} with ${data.hostName}`,
+		html: htmlBody
+	}, 'reschedule request email');
 }

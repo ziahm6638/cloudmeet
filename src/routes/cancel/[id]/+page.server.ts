@@ -123,7 +123,8 @@ export const actions: Actions = {
 				.run();
 
 			// Send cancellation email if enabled
-			if (env.EMAILIT_API_KEY) {
+			if (!env.RESEND_API_KEY) console.warn("RESEND_API_KEY is not set; skipping emails");
+			if (env.RESEND_API_KEY) {
 				try {
 					// Get full booking details for email
 					const fullBooking = await db
@@ -188,7 +189,7 @@ export const actions: Actions = {
 									brandColor: fullBooking.brand_color || undefined
 								},
 								{
-									apiKey: env.EMAILIT_API_KEY,
+									apiKey: env.RESEND_API_KEY,
 									from: env.EMAIL_FROM || fullBooking.host_email,
 									replyTo: replyToEmail
 								},
@@ -218,7 +219,7 @@ export const actions: Actions = {
 								},
 								fullBooking.host_email,
 								{
-									apiKey: env.EMAILIT_API_KEY,
+									apiKey: env.RESEND_API_KEY,
 									from: env.EMAIL_FROM || fullBooking.host_email
 								}
 							);
