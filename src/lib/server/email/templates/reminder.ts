@@ -65,7 +65,6 @@ function buildCopy(data: BookingEmailData, reminderType: ReminderType): Reminder
 	const zone = timezoneLabel(data.timezone);
 	const name = firstName(data.attendeeName);
 	const signature = data.senderName || data.hostName;
-	const rescheduleUrl = `${data.appUrl}/reschedule/${data.bookingId}`;
 
 	const paragraphs: string[] = [`Hi ${name},`];
 
@@ -79,9 +78,6 @@ function buildCopy(data: BookingEmailData, reminderType: ReminderType): Reminder
 		if (data.customMessage) {
 			paragraphs.push(data.customMessage);
 		}
-		paragraphs.push(
-			`If something's come up, you can pick another time here:\n${rescheduleUrl}\n\nOr just reply to this email and we'll sort it out.`
-		);
 		return {
 			subject: `Speaking tomorrow at ${time}`,
 			paragraphs,
@@ -97,7 +93,6 @@ function buildCopy(data: BookingEmailData, reminderType: ReminderType): Reminder
 		if (data.customMessage) {
 			paragraphs.push(data.customMessage);
 		}
-		paragraphs.push(`If now no longer works, just reply and we'll find another time.`);
 		return {
 			subject: `We're on in an hour`,
 			paragraphs,
