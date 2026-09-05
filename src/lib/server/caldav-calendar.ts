@@ -190,8 +190,23 @@ export async function getCalDAVBusySlots(
 	return slots;
 }
 
-function escapeICSText(value: string): string {
+/**
+ * Event names and descriptions are stored HTML-escaped for the email
+ * templates; a calendar shows plain text, so decode before escaping for ICS.
+ */
+function decodeHtmlEntities(value: string): string {
 	return value
+		.replace(/&lt;/g, '<')
+		.replace(/&gt;/g, '>')
+		.replace(/&quot;/g, '"')
+		.replace(/&#0?39;/g, "'")
+		.replace(/&apos;/g, "'")
+		.replace(/&nbsp;/g, ' ')
+		.replace(/&amp;/g, '&');
+}
+
+function escapeICSText(value: string): string {
+	return decodeHtmlEntities(value)
 		.replace(/\\/g, '\\\\')
 		.replace(/;/g, '\\;')
 		.replace(/,/g, '\\,')
