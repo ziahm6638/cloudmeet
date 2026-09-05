@@ -2,6 +2,7 @@
 	interface Props {
 		bookingForm: {
 			name: string;
+			company: string;
 			email: string;
 			notes: string;
 		};
@@ -39,6 +40,18 @@
 				id="name"
 				bind:value={bookingForm.name}
 				required
+				class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent outline-none"
+				style="--tw-ring-color: {brandColor}"
+			/>
+		</div>
+		<div>
+			<label for="company" class="block text-sm font-medium text-gray-700 mb-2">Company *</label>
+			<input
+				type="text"
+				id="company"
+				bind:value={bookingForm.company}
+				required
+				autocomplete="organization"
 				class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent outline-none"
 				style="--tw-ring-color: {brandColor}"
 			/>
