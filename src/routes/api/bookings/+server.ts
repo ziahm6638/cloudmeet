@@ -226,7 +226,7 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 				caldavEventUid = await createCalDAVEvent(caldavConfig, {
 					uid: crypto.randomUUID(),
 					title: `${eventType.name} with ${attendeeName}`,
-					description: `${eventType.description || ''}\n\nAttendee: ${attendeeName} (${attendeeEmail})${notes ? `\n\nNotes from attendee:\n${notes}` : ''}`,
+					description: `${meetingUrl ? `Join the video call: ${meetingUrl}\n\n` : ''}${eventType.description || ''}\n\nAttendee: ${attendeeName} (${attendeeEmail})${notes ? `\n\nNotes from attendee:\n${notes}` : ''}`,
 					location: meetingUrl,
 					startTime: startDateTime,
 					endTime: endDateTime,

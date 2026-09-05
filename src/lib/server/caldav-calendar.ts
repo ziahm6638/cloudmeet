@@ -234,6 +234,11 @@ function buildICS(event: CalDAVEventInput): string {
 	}
 	if (event.location) {
 		lines.push(`LOCATION:${escapeICSText(event.location)}`);
+		// A URL location is the join link: expose it as URL too, which calendar
+		// clients surface as a join action rather than plain text.
+		if (/^https?:\/\//i.test(event.location)) {
+			lines.push(`URL;VALUE=URI:${event.location}`);
+		}
 	}
 	if (event.organizerEmail) {
 		const name = event.organizerName ? `;CN=${escapeICSText(event.organizerName)}` : '';

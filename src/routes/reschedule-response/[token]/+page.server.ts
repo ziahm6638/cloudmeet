@@ -207,7 +207,7 @@ export const actions: Actions = {
 					const newUid = await createCalDAVEvent(caldavConfig, {
 						uid: crypto.randomUUID(),
 						title: `${proposal.event_name} with ${proposal.attendee_name}`,
-						description: `${proposal.event_description || ''}\n\nAttendee: ${proposal.attendee_name} (${proposal.attendee_email})`,
+						description: `${newMeetingUrl ? `Join the video call: ${newMeetingUrl}\n\n` : ''}${proposal.event_description || ''}\n\nAttendee: ${proposal.attendee_name} (${proposal.attendee_email})`,
 						location: newMeetingUrl,
 						startTime: new Date(proposal.proposed_start_time),
 						endTime: new Date(proposal.proposed_end_time),
