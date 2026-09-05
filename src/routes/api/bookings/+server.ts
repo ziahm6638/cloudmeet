@@ -11,6 +11,7 @@ import { sendBookingEmail, sendAdminNotificationEmail, getEmailTemplates, isEmai
 import { createMeetRoom, isMeetConfigured } from '$lib/server/meet';
 import { isValidEmail, validateLength, validateFields, MAX_LENGTHS } from '$lib/server/validation';
 import { invalidateAvailabilityCache } from '$lib/server/availability-cache';
+import { createCalDAVEvent, getCalDAVConfig } from '$lib/server/caldav-calendar';
 
 export const POST: RequestHandler = async ({ request, platform }) => {
 	const env = platform?.env;
@@ -217,14 +218,37 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 			}
 		}
 
+		// Write the booking into the shared Nextcloud calendar when configured
+		let caldavEventUid: string | null = null;
+		const caldavConfig = getCalDAVConfig(env);
+		if (caldavConfig) {
+			try {
+				caldavEventUid = await createCalDAVEvent(caldavConfig, {
+					uid: crypto.randomUUID(),
+					title: `${eventType.name} with ${attendeeName}`,
+					description: `${eventType.description || ''}\n\nAttendee: ${attendeeName} (${attendeeEmail})${notes ? `\n\nNotes from attendee:\n${notes}` : ''}`,
+					location: meetingUrl,
+					startTime: startDateTime,
+					endTime: endDateTime,
+					organizerEmail: user.email,
+					organizerName: user.name,
+					attendeeEmail,
+					attendeeName
+				});
+			} catch (err) {
+				// The booking is still valid without the calendar copy.
+				console.error('Error creating CalDAV event:', err);
+			}
+		}
+
 		// Create booking in database
 		const result = await db
 			.prepare(
 				`INSERT INTO bookings (
 					user_id, event_type_id, start_time, end_time,
 					attendee_name, attendee_email, attendee_notes, status,
-					google_event_id, outlook_event_id, meeting_url, created_at
-				) VALUES (?, ?, ?, ?, ?, ?, ?, 'confirmed', ?, ?, ?, CURRENT_TIMESTAMP)`
+					google_event_id, outlook_event_id, meeting_url, caldav_event_uid, created_at
+				) VALUES (?, ?, ?, ?, ?, ?, ?, 'confirmed', ?, ?, ?, ?, CURRENT_TIMESTAMP)`
 			)
 			.bind(
 				user.id,
@@ -236,7 +260,8 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 				notes || null,
 				googleEventId,
 				outlookEventId,
-				meetingUrl
+				meetingUrl,
+				caldavEventUid
 			)
 			.run();
 

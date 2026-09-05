@@ -8,6 +8,7 @@ import type { RequestHandler } from './$types';
 import { createCalendarEvent, cancelCalendarEvent, getValidAccessToken } from '$lib/server/google-calendar';
 import { sendRescheduleEmail, sendAdminRescheduleNotification, getEmailTemplates, isEmailEnabled } from '$lib/server/email';
 import { invalidateAvailabilityCache } from '$lib/server/availability-cache';
+import { createCalDAVEvent, deleteCalDAVEvent, getCalDAVConfig } from '$lib/server/caldav-calendar';
 
 export const POST: RequestHandler = async ({ request, platform }) => {
 	const env = platform?.env;
@@ -35,7 +36,7 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 		const originalBooking = await db
 			.prepare(
 				`SELECT b.id, b.user_id, b.event_type_id, b.start_time, b.end_time,
-				b.attendee_name, b.attendee_email, b.attendee_notes, b.google_event_id,
+				b.attendee_name, b.attendee_email, b.attendee_notes, b.google_event_id, b.caldav_event_uid,
 				e.name as event_name, e.slug as event_slug, e.description as event_description,
 				e.duration_minutes as duration,
 				u.id as host_user_id, u.name as host_name, u.email as host_email,
@@ -56,6 +57,7 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 				attendee_email: string;
 				attendee_notes: string | null;
 				google_event_id: string | null;
+				caldav_event_uid: string | null;
 				event_name: string;
 				event_slug: string;
 				event_description: string | null;
@@ -161,6 +163,33 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 			// Continue without calendar event if there's an error
 		}
 
+		// Move the event in the shared Nextcloud calendar
+		let newCaldavEventUid = originalBooking.caldav_event_uid;
+		const caldavConfig = getCalDAVConfig(env);
+		if (caldavConfig) {
+			try {
+				if (originalBooking.caldav_event_uid) {
+					await deleteCalDAVEvent(caldavConfig, originalBooking.caldav_event_uid);
+				}
+
+				const notes = originalBooking.attendee_notes;
+				newCaldavEventUid = await createCalDAVEvent(caldavConfig, {
+					uid: crypto.randomUUID(),
+					title: `${originalBooking.event_name} with ${originalBooking.attendee_name}`,
+					description: `${originalBooking.event_description || ''}\n\nAttendee: ${originalBooking.attendee_name} (${originalBooking.attendee_email})${notes ? `\n\nNotes from attendee:\n${notes}` : ''}`,
+					location: newMeetingUrl,
+					startTime: newStartDateTime,
+					endTime: newEndDateTime,
+					organizerEmail: originalBooking.host_email,
+					organizerName: originalBooking.host_name,
+					attendeeEmail: originalBooking.attendee_email,
+					attendeeName: originalBooking.attendee_name
+				});
+			} catch (err) {
+				console.error('Error moving CalDAV event:', err);
+			}
+		}
+
 		// Update the booking with new times (keeping attendee info) and set status to confirmed
 		await db
 			.prepare(
@@ -169,6 +198,7 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 					end_time = ?,
 					google_event_id = ?,
 					meeting_url = ?,
+					caldav_event_uid = ?,
 					status = 'confirmed'
 				WHERE id = ?`
 			)
@@ -177,6 +207,7 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 				newEndTime,
 				newCalendarEventId,
 				newMeetingUrl,
+				newCaldavEventUid,
 				bookingId
 			)
 			.run();

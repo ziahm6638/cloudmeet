@@ -9,6 +9,7 @@ import { cancelCalendarEvent, getValidAccessToken } from '$lib/server/google-cal
 import { cancelOutlookCalendarEvent, getValidOutlookAccessToken } from '$lib/server/outlook-calendar';
 import { sendCancellationEmail, getEmailTemplates, isEmailEnabled } from '$lib/server/email';
 import { invalidateAvailabilityCache } from '$lib/server/availability-cache';
+import { deleteCalDAVEvent, getCalDAVConfig } from '$lib/server/caldav-calendar';
 
 export const POST = async (event: RequestEvent) => {
 	const env = event.platform?.env;
@@ -38,7 +39,7 @@ export const POST = async (event: RequestEvent) => {
 		// Get booking and verify ownership
 		const booking = await db
 			.prepare(
-				`SELECT b.id, b.user_id, b.google_event_id, b.outlook_event_id, b.status, b.start_time, b.end_time,
+				`SELECT b.id, b.user_id, b.google_event_id, b.outlook_event_id, b.caldav_event_uid, b.status, b.start_time, b.end_time,
 				b.attendee_name, b.attendee_email,
 				e.name as event_name, e.slug as event_slug, e.description as event_description,
 				u.name as host_name, u.email as host_email, u.contact_email, u.settings, u.brand_color
@@ -53,6 +54,7 @@ export const POST = async (event: RequestEvent) => {
 				user_id: string;
 				google_event_id: string | null;
 				outlook_event_id: string | null;
+				caldav_event_uid: string | null;
 				status: string;
 				start_time: string;
 				end_time: string;
@@ -123,6 +125,18 @@ export const POST = async (event: RequestEvent) => {
 			.prepare(`UPDATE scheduled_emails SET status = 'cancelled' WHERE booking_id = ? AND status = 'pending'`)
 			.bind(bookingId)
 			.run();
+
+		// Remove the event from the shared Nextcloud calendar
+		if (booking.caldav_event_uid) {
+			const caldavConfig = getCalDAVConfig(env);
+			if (caldavConfig) {
+				try {
+					await deleteCalDAVEvent(caldavConfig, booking.caldav_event_uid);
+				} catch (err) {
+					console.error('Failed to delete CalDAV event:', err);
+				}
+			}
+		}
 
 		// Free the slot in the availability cache, otherwise the canceled time
 		// stays unbookable until the 5 minute TTL lapses

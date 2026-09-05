@@ -156,6 +156,10 @@ jobs:
           MEET_CLIENT_ID: ${{ secrets.MEET_CLIENT_ID }}
           MEET_CLIENT_SECRET: ${{ secrets.MEET_CLIENT_SECRET }}
           MEET_OWNER_EMAIL: ${{ secrets.MEET_OWNER_EMAIL }}
+          NEXTCLOUD_URL: ${{ secrets.NEXTCLOUD_URL }}
+          NEXTCLOUD_USERNAME: ${{ secrets.NEXTCLOUD_USERNAME }}
+          NEXTCLOUD_APP_PASSWORD: ${{ secrets.NEXTCLOUD_APP_PASSWORD }}
+          NEXTCLOUD_CALENDAR: ${{ secrets.NEXTCLOUD_CALENDAR }}
         run: |
           # Add env vars to wrangler.toml before deploy
           cat >> wrangler.toml << EOF
@@ -175,6 +179,10 @@ jobs:
           MEET_CLIENT_ID = "$MEET_CLIENT_ID"
           MEET_CLIENT_SECRET = "$MEET_CLIENT_SECRET"
           MEET_OWNER_EMAIL = "$MEET_OWNER_EMAIL"
+          NEXTCLOUD_URL = "$NEXTCLOUD_URL"
+          NEXTCLOUD_USERNAME = "$NEXTCLOUD_USERNAME"
+          NEXTCLOUD_APP_PASSWORD = "$NEXTCLOUD_APP_PASSWORD"
+          NEXTCLOUD_CALENDAR = "$NEXTCLOUD_CALENDAR"
           EOF
 
           echo "Final wrangler.toml:"

@@ -8,6 +8,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { createCalendarEvent, cancelCalendarEvent, getValidAccessToken } from '$lib/server/google-calendar';
 import { sendAdminRescheduleNotification, sendAdminCancellationNotification } from '$lib/server/email';
 import { invalidateAvailabilityCache } from '$lib/server/availability-cache';
+import { createCalDAVEvent, deleteCalDAVEvent, getCalDAVConfig } from '$lib/server/caldav-calendar';
 
 export const load: PageServerLoad = async ({ params, url, platform }) => {
 	const db = platform?.env?.DB;
@@ -91,7 +92,7 @@ export const actions: Actions = {
 			const proposal = await db
 				.prepare(
 					`SELECT p.id, p.booking_id, p.proposed_start_time, p.proposed_end_time, p.status,
-					b.attendee_name, b.attendee_email, b.google_event_id, b.attendee_notes,
+					b.attendee_name, b.attendee_email, b.google_event_id, b.caldav_event_uid, b.attendee_notes,
 					b.start_time as original_start_time, b.end_time as original_end_time,
 					e.id as event_type_id, e.name as event_name, e.slug as event_slug, e.description as event_description, e.duration_minutes, e.location_type, e.location_details,
 					u.id as user_id, u.name as host_name, u.email as host_email, u.contact_email, u.brand_color, u.settings
@@ -111,6 +112,7 @@ export const actions: Actions = {
 					attendee_name: string;
 					attendee_email: string;
 					google_event_id: string | null;
+					caldav_event_uid: string | null;
 					attendee_notes: string | null;
 					original_start_time: string;
 					original_end_time: string;
@@ -194,6 +196,36 @@ export const actions: Actions = {
 				)
 				.run();
 
+			// Move the event in the shared Nextcloud calendar
+			const caldavConfig = getCalDAVConfig(env);
+			if (caldavConfig) {
+				try {
+					if (proposal.caldav_event_uid) {
+						await deleteCalDAVEvent(caldavConfig, proposal.caldav_event_uid);
+					}
+
+					const newUid = await createCalDAVEvent(caldavConfig, {
+						uid: crypto.randomUUID(),
+						title: `${proposal.event_name} with ${proposal.attendee_name}`,
+						description: `${proposal.event_description || ''}\n\nAttendee: ${proposal.attendee_name} (${proposal.attendee_email})`,
+						location: newMeetingUrl,
+						startTime: new Date(proposal.proposed_start_time),
+						endTime: new Date(proposal.proposed_end_time),
+						organizerEmail: proposal.host_email,
+						organizerName: proposal.host_name,
+						attendeeEmail: proposal.attendee_email,
+						attendeeName: proposal.attendee_name
+					});
+
+					await db
+						.prepare('UPDATE bookings SET caldav_event_uid = ? WHERE id = ?')
+						.bind(newUid, proposal.booking_id)
+						.run();
+				} catch (err) {
+					console.error('Error moving CalDAV event:', err);
+				}
+			}
+
 			// The old slot frees up and the new one becomes busy
 			await invalidateAvailabilityCache(env.KV, proposal.event_slug, [
 				proposal.original_start_time,
@@ -272,7 +304,7 @@ export const actions: Actions = {
 			const proposal = await db
 				.prepare(
 					`SELECT p.id, p.booking_id, p.status, p.proposed_start_time, p.proposed_end_time,
-					b.google_event_id, b.attendee_name, b.attendee_email, b.attendee_notes,
+					b.google_event_id, b.caldav_event_uid, b.attendee_name, b.attendee_email, b.attendee_notes,
 					b.start_time as original_start_time, b.end_time as original_end_time,
 					e.name as event_name, e.slug as event_slug, e.description as event_description,
 					u.id as user_id, u.name as host_name, u.email as host_email, u.brand_color, u.settings
@@ -290,6 +322,7 @@ export const actions: Actions = {
 					proposed_start_time: string;
 					proposed_end_time: string;
 					google_event_id: string | null;
+					caldav_event_uid: string | null;
 					attendee_name: string;
 					attendee_email: string;
 					attendee_notes: string | null;
@@ -329,6 +362,18 @@ export const actions: Actions = {
 				.prepare(`UPDATE bookings SET status = 'canceled', canceled_at = CURRENT_TIMESTAMP, canceled_by = 'attendee' WHERE id = ?`)
 				.bind(proposal.booking_id)
 				.run();
+
+			// Remove the event from the shared Nextcloud calendar
+			if (proposal.caldav_event_uid) {
+				const caldavConfig = getCalDAVConfig(env);
+				if (caldavConfig) {
+					try {
+						await deleteCalDAVEvent(caldavConfig, proposal.caldav_event_uid);
+					} catch (err) {
+						console.error('Failed to delete CalDAV event:', err);
+					}
+				}
+			}
 
 			// Declining cancels the booking outright, so its slot is free again
 			await invalidateAvailabilityCache(env.KV, proposal.event_slug, [

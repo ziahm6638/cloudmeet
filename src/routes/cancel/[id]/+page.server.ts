@@ -7,6 +7,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { cancelCalendarEvent, getValidAccessToken } from '$lib/server/google-calendar';
 import { sendCancellationEmail, sendAdminCancellationNotification, getEmailTemplates, isEmailEnabled } from '$lib/server/email';
 import { invalidateAvailabilityCache } from '$lib/server/availability-cache';
+import { deleteCalDAVEvent, getCalDAVConfig } from '$lib/server/caldav-calendar';
 
 export const load: PageServerLoad = async ({ params, platform }) => {
 	const db = platform?.env?.DB;
@@ -75,7 +76,7 @@ export const actions: Actions = {
 			// Get booking and user details
 			const booking = await db
 				.prepare(
-					`SELECT b.id, b.user_id, b.google_event_id, b.status, b.start_time,
+					`SELECT b.id, b.user_id, b.google_event_id, b.caldav_event_uid, b.status, b.start_time,
 					e.slug as event_slug
 					FROM bookings b
 					JOIN event_types e ON b.event_type_id = e.id
@@ -86,6 +87,7 @@ export const actions: Actions = {
 					id: string;
 					user_id: string;
 					google_event_id: string | null;
+					caldav_event_uid: string | null;
 					status: string;
 					start_time: string;
 					event_slug: string;
@@ -126,6 +128,18 @@ export const actions: Actions = {
 				.prepare(`UPDATE scheduled_emails SET status = 'cancelled' WHERE booking_id = ? AND status = 'pending'`)
 				.bind(bookingId)
 				.run();
+
+			// Remove the event from the shared Nextcloud calendar
+			if (booking.caldav_event_uid) {
+				const caldavConfig = getCalDAVConfig(env);
+				if (caldavConfig) {
+					try {
+						await deleteCalDAVEvent(caldavConfig, booking.caldav_event_uid);
+					} catch (err) {
+						console.error('Failed to delete CalDAV event:', err);
+					}
+				}
+			}
 
 			// Free the canceled slot for other bookers straight away
 			await invalidateAvailabilityCache(env.KV, booking.event_slug, [booking.start_time]);

@@ -22,6 +22,10 @@ declare global {
 				EMAIL_FROM?: string;
 				TURNSTILE_SECRET_KEY?: string;
 				CRON_SECRET?: string;
+				NEXTCLOUD_URL?: string;
+				NEXTCLOUD_USERNAME?: string;
+				NEXTCLOUD_APP_PASSWORD?: string;
+				NEXTCLOUD_CALENDAR?: string;
 			};
 			context: {
 				waitUntil(promise: Promise<any>): void;

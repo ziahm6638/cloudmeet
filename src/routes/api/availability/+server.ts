@@ -11,6 +11,7 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getBusyTimes, getValidAccessToken } from '$lib/server/google-calendar';
 import { getOutlookBusyTimes, getValidOutlookAccessToken } from '$lib/server/outlook-calendar';
+import { getCalDAVBusySlots, getCalDAVConfig } from '$lib/server/caldav-calendar';
 
 interface TimeSlot {
 	start: string;
@@ -133,6 +134,18 @@ export const GET: RequestHandler = async ({ url, platform }) => {
 			} catch (err) {
 				// User may not have Outlook connected - that's fine
 				console.error('Error fetching Outlook Calendar busy times:', err);
+			}
+		}
+
+		// Fetch Nextcloud (CalDAV) busy times when configured
+		const caldavConfig = getCalDAVConfig(env);
+		if (caldavConfig) {
+			try {
+				const caldavBusy = await getCalDAVBusySlots(caldavConfig, startOfDay, endOfDay);
+				busySlots.push(...caldavBusy);
+			} catch (err) {
+				// Fail closed would hide the whole day; fail open and log instead.
+				console.error('Error fetching CalDAV busy times:', err);
 			}
 		}
 
