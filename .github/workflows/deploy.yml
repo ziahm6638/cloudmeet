@@ -150,6 +150,7 @@ jobs:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          CRM_API_SECRET: ${{ secrets.CRM_API_SECRET }}
           MICROSOFT_CLIENT_ID: ${{ secrets.MICROSOFT_CLIENT_ID }}
           MICROSOFT_CLIENT_SECRET: ${{ secrets.MICROSOFT_CLIENT_SECRET }}
           MEET_API_URL: ${{ secrets.MEET_API_URL }}
@@ -173,6 +174,7 @@ jobs:
           RESEND_API_KEY = "$RESEND_API_KEY"
           EMAIL_FROM = "$EMAIL_FROM"
           CRON_SECRET = "$CRON_SECRET"
+          CRM_API_SECRET = "$CRM_API_SECRET"
           MICROSOFT_CLIENT_ID = "$MICROSOFT_CLIENT_ID"
           MICROSOFT_CLIENT_SECRET = "$MICROSOFT_CLIENT_SECRET"
           MEET_API_URL = "$MEET_API_URL"
