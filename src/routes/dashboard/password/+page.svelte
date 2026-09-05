@@ -73,10 +73,10 @@
 					type="password"
 					autocomplete="new-password"
 					required
-					minlength="12"
+					minlength="8"
 					class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
 				/>
-				<p class="mt-1 text-xs text-gray-500">At least 12 characters.</p>
+				<p class="mt-1 text-xs text-gray-500">At least 8 characters.</p>
 			</div>
 
 			<div>
@@ -89,7 +89,7 @@
 					type="password"
 					autocomplete="new-password"
 					required
-					minlength="12"
+					minlength="8"
 					class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
 				/>
 			</div>
