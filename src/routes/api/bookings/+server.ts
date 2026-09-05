@@ -12,6 +12,7 @@ import { createMeetRoom, isMeetConfigured } from '$lib/server/meet';
 import { isValidEmail, validateLength, validateFields, MAX_LENGTHS } from '$lib/server/validation';
 import { invalidateAvailabilityCache } from '$lib/server/availability-cache';
 import { createCalDAVEvent, getCalDAVConfig } from '$lib/server/caldav-calendar';
+import { notifyCrm } from '$lib/server/crm-webhook';
 
 export const POST: RequestHandler = async ({ request, platform }) => {
 	const env = platform?.env;
@@ -379,6 +380,19 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 				console.error('Failed to send confirmation email:', emailError);
 			}
 		}
+
+		await notifyCrm(env, {
+			type: 'created',
+			bookingId,
+			start: startDateTime.toISOString(),
+			end: endDateTime.toISOString(),
+			timezone: timezone || undefined,
+			joinUrl: meetingUrl,
+			attendeeName,
+			attendeeCompany: company,
+			attendeeEmail,
+			crm
+		});
 
 		return json({
 			success: true,

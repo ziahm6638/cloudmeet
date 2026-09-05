@@ -10,6 +10,7 @@ import { cancelOutlookCalendarEvent, getValidOutlookAccessToken } from '$lib/ser
 import { sendCancellationEmail, getEmailTemplates, isEmailEnabled } from '$lib/server/email';
 import { invalidateAvailabilityCache } from '$lib/server/availability-cache';
 import { deleteCalDAVEvent, getCalDAVConfig } from '$lib/server/caldav-calendar';
+import { notifyCrm } from '$lib/server/crm-webhook';
 
 export const POST = async (event: RequestEvent) => {
 	const env = event.platform?.env;
@@ -119,6 +120,12 @@ export const POST = async (event: RequestEvent) => {
 			.prepare('UPDATE bookings SET status = ?, canceled_at = CURRENT_TIMESTAMP, canceled_by = ?, cancellation_reason = ? WHERE id = ?')
 			.bind('canceled', 'host', message || null, bookingId)
 			.run();
+
+		await notifyCrm(env, {
+			type: 'cancelled',
+			bookingId,
+			start: booking.start_time
+		});
 
 		// Cancel any scheduled reminder emails
 		await db

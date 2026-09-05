@@ -151,6 +151,7 @@ jobs:
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
           CRM_API_SECRET: ${{ secrets.CRM_API_SECRET }}
+          CRM_WEBHOOK_URL: ${{ secrets.CRM_WEBHOOK_URL }}
           MICROSOFT_CLIENT_ID: ${{ secrets.MICROSOFT_CLIENT_ID }}
           MICROSOFT_CLIENT_SECRET: ${{ secrets.MICROSOFT_CLIENT_SECRET }}
           MEET_API_URL: ${{ secrets.MEET_API_URL }}
@@ -175,6 +176,7 @@ jobs:
           EMAIL_FROM = "$EMAIL_FROM"
           CRON_SECRET = "$CRON_SECRET"
           CRM_API_SECRET = "$CRM_API_SECRET"
+          CRM_WEBHOOK_URL = "$CRM_WEBHOOK_URL"
           MICROSOFT_CLIENT_ID = "$MICROSOFT_CLIENT_ID"
           MICROSOFT_CLIENT_SECRET = "$MICROSOFT_CLIENT_SECRET"
           MEET_API_URL = "$MEET_API_URL"
