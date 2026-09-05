@@ -7,6 +7,7 @@ import { json, error, type RequestEvent } from '@sveltejs/kit';
 import { getCurrentUser } from '$lib/server/auth';
 import { getEmailTemplates, isEmailEnabled } from '$lib/server/email';
 import { sendViaResend } from '$lib/server/email/resend';
+import { invalidateAvailabilityCache } from '$lib/server/availability-cache';
 
 export const POST = async (event: RequestEvent) => {
 	const env = event.platform?.env;
@@ -97,6 +98,10 @@ export const POST = async (event: RequestEvent) => {
 			.prepare(`UPDATE bookings SET status = 'rescheduled' WHERE id = ?`)
 			.bind(bookingId)
 			.run();
+
+		// The booking is no longer 'confirmed', so its original slot is bookable
+		// again; the proposed slot only becomes busy once the attendee accepts.
+		await invalidateAvailabilityCache(env.KV, booking.event_slug, [booking.start_time]);
 
 		// Send email to attendee with proposal
 		if (!env.RESEND_API_KEY) console.warn("RESEND_API_KEY is not set; skipping emails");

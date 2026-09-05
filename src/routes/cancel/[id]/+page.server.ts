@@ -6,6 +6,7 @@ import { error, redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { cancelCalendarEvent, getValidAccessToken } from '$lib/server/google-calendar';
 import { sendCancellationEmail, sendAdminCancellationNotification, getEmailTemplates, isEmailEnabled } from '$lib/server/email';
+import { invalidateAvailabilityCache } from '$lib/server/availability-cache';
 
 export const load: PageServerLoad = async ({ params, platform }) => {
 	const db = platform?.env?.DB;
@@ -74,8 +75,10 @@ export const actions: Actions = {
 			// Get booking and user details
 			const booking = await db
 				.prepare(
-					`SELECT b.id, b.user_id, b.google_event_id, b.status
+					`SELECT b.id, b.user_id, b.google_event_id, b.status, b.start_time,
+					e.slug as event_slug
 					FROM bookings b
+					JOIN event_types e ON b.event_type_id = e.id
 					WHERE b.id = ?`
 				)
 				.bind(bookingId)
@@ -84,6 +87,8 @@ export const actions: Actions = {
 					user_id: string;
 					google_event_id: string | null;
 					status: string;
+					start_time: string;
+					event_slug: string;
 				}>();
 
 			if (!booking) {
@@ -121,6 +126,9 @@ export const actions: Actions = {
 				.prepare(`UPDATE scheduled_emails SET status = 'cancelled' WHERE booking_id = ? AND status = 'pending'`)
 				.bind(bookingId)
 				.run();
+
+			// Free the canceled slot for other bookers straight away
+			await invalidateAvailabilityCache(env.KV, booking.event_slug, [booking.start_time]);
 
 			// Send cancellation email if enabled
 			if (!env.RESEND_API_KEY) console.warn("RESEND_API_KEY is not set; skipping emails");

@@ -8,6 +8,7 @@ import { getCurrentUser } from '$lib/server/auth';
 import { cancelCalendarEvent, getValidAccessToken } from '$lib/server/google-calendar';
 import { cancelOutlookCalendarEvent, getValidOutlookAccessToken } from '$lib/server/outlook-calendar';
 import { sendCancellationEmail, getEmailTemplates, isEmailEnabled } from '$lib/server/email';
+import { invalidateAvailabilityCache } from '$lib/server/availability-cache';
 
 export const POST = async (event: RequestEvent) => {
 	const env = event.platform?.env;
@@ -122,6 +123,10 @@ export const POST = async (event: RequestEvent) => {
 			.prepare(`UPDATE scheduled_emails SET status = 'cancelled' WHERE booking_id = ? AND status = 'pending'`)
 			.bind(bookingId)
 			.run();
+
+		// Free the slot in the availability cache, otherwise the canceled time
+		// stays unbookable until the 5 minute TTL lapses
+		await invalidateAvailabilityCache(env.KV, booking.event_slug, [booking.start_time]);
 
 		// Send cancellation email if enabled
 		if (!env.RESEND_API_KEY) console.warn("RESEND_API_KEY is not set; skipping emails");

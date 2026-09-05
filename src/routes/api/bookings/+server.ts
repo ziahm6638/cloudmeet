@@ -10,6 +10,7 @@ import { createOutlookCalendarEvent, getValidOutlookAccessToken } from '$lib/ser
 import { sendBookingEmail, sendAdminNotificationEmail, getEmailTemplates, isEmailEnabled, type EmailTemplateType } from '$lib/server/email';
 import { createMeetRoom, isMeetConfigured } from '$lib/server/meet';
 import { isValidEmail, validateLength, validateFields, MAX_LENGTHS } from '$lib/server/validation';
+import { invalidateAvailabilityCache } from '$lib/server/availability-cache';
 
 export const POST: RequestHandler = async ({ request, platform }) => {
 	const env = platform?.env;
@@ -239,10 +240,8 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 			)
 			.run();
 
-		// Invalidate availability cache
-		const dateStr = startDateTime.toISOString().split('T')[0];
-		const cacheKey = `availability:${eventSlug}:${dateStr}`;
-		await env.KV.delete(cacheKey);
+		// Invalidate availability cache (day + month)
+		await invalidateAvailabilityCache(env.KV, eventSlug, [startDateTime.toISOString()]);
 
 		// Send booking confirmation email via Resend (if enabled)
 		if (!env.RESEND_API_KEY) console.warn("RESEND_API_KEY is not set; skipping emails");

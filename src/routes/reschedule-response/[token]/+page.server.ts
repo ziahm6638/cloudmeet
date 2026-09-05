@@ -7,6 +7,7 @@ import { error, redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { createCalendarEvent, cancelCalendarEvent, getValidAccessToken } from '$lib/server/google-calendar';
 import { sendAdminRescheduleNotification, sendAdminCancellationNotification } from '$lib/server/email';
+import { invalidateAvailabilityCache } from '$lib/server/availability-cache';
 
 export const load: PageServerLoad = async ({ params, url, platform }) => {
 	const db = platform?.env?.DB;
@@ -92,7 +93,7 @@ export const actions: Actions = {
 					`SELECT p.id, p.booking_id, p.proposed_start_time, p.proposed_end_time, p.status,
 					b.attendee_name, b.attendee_email, b.google_event_id, b.attendee_notes,
 					b.start_time as original_start_time, b.end_time as original_end_time,
-					e.id as event_type_id, e.name as event_name, e.description as event_description, e.duration_minutes, e.location_type, e.location_details,
+					e.id as event_type_id, e.name as event_name, e.slug as event_slug, e.description as event_description, e.duration_minutes, e.location_type, e.location_details,
 					u.id as user_id, u.name as host_name, u.email as host_email, u.contact_email, u.brand_color, u.settings
 					FROM reschedule_proposals p
 					JOIN bookings b ON p.booking_id = b.id
@@ -115,6 +116,7 @@ export const actions: Actions = {
 					original_end_time: string;
 					event_type_id: string;
 					event_name: string;
+					event_slug: string;
 					event_description: string | null;
 					location_type: string | null;
 					location_details: string | null;
@@ -192,6 +194,12 @@ export const actions: Actions = {
 				)
 				.run();
 
+			// The old slot frees up and the new one becomes busy
+			await invalidateAvailabilityCache(env.KV, proposal.event_slug, [
+				proposal.original_start_time,
+				proposal.proposed_start_time
+			]);
+
 			// Update proposal status
 			await db
 				.prepare(`UPDATE reschedule_proposals SET status = 'accepted', responded_at = CURRENT_TIMESTAMP WHERE id = ?`)
@@ -266,7 +274,7 @@ export const actions: Actions = {
 					`SELECT p.id, p.booking_id, p.status, p.proposed_start_time, p.proposed_end_time,
 					b.google_event_id, b.attendee_name, b.attendee_email, b.attendee_notes,
 					b.start_time as original_start_time, b.end_time as original_end_time,
-					e.name as event_name, e.description as event_description,
+					e.name as event_name, e.slug as event_slug, e.description as event_description,
 					u.id as user_id, u.name as host_name, u.email as host_email, u.brand_color, u.settings
 					FROM reschedule_proposals p
 					JOIN bookings b ON p.booking_id = b.id
@@ -288,6 +296,7 @@ export const actions: Actions = {
 					original_start_time: string;
 					original_end_time: string;
 					event_name: string;
+					event_slug: string;
 					event_description: string | null;
 					user_id: string;
 					host_name: string;
@@ -320,6 +329,11 @@ export const actions: Actions = {
 				.prepare(`UPDATE bookings SET status = 'canceled', canceled_at = CURRENT_TIMESTAMP, canceled_by = 'attendee' WHERE id = ?`)
 				.bind(proposal.booking_id)
 				.run();
+
+			// Declining cancels the booking outright, so its slot is free again
+			await invalidateAvailabilityCache(env.KV, proposal.event_slug, [
+				proposal.original_start_time
+			]);
 
 			// Update proposal status
 			await db
