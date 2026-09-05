@@ -104,7 +104,7 @@
 					href="/auth/login"
 					class="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 transition"
 				>
-					Login with Google
+					Sign in
 				</a>
 				<a
 					href="/dashboard"
@@ -252,7 +252,7 @@
 				href="/auth/login"
 				class="inline-flex items-center px-12 py-4 border border-transparent text-lg font-medium rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 transition"
 			>
-				Get Started - It's Free
+				Sign in
 			</a>
 		</div>
 	</div>

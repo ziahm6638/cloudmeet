@@ -1,12 +1,15 @@
 /**
- * Google OAuth login initiation
+ * Google OAuth initiation.
+ *
+ * This is no longer the sign-in path (see /auth/login for password sign-in).
+ * It exists to connect a Google Calendar to the admin account.
  */
 
 import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getAuthUrl } from '$lib/server/auth';
 
-export const GET: RequestHandler = async ({ platform, url }) => {
+export const GET: RequestHandler = async ({ platform }) => {
 	const env = platform?.env;
 	if (!env) {
 		throw new Error('Platform env not available');

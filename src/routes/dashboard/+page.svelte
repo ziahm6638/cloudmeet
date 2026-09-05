@@ -122,6 +122,12 @@
 						Emails
 					</a>
 					<a
+						href="/dashboard/password"
+						class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
+					>
+						Password
+					</a>
+					<a
 						href="/dashboard/availability"
 						class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
 					>
