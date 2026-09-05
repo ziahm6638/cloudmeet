@@ -14,6 +14,8 @@ export interface BookingEmailData {
 	meetingType?: 'google_meet' | 'teams' | 'meet';
 	bookingId: string | number;
 	hostName: string;
+	/** Name to sign emails with, when the host's display name is a brand. */
+	senderName?: string;
 	hostEmail: string;
 	hostContactEmail?: string;
 	appUrl: string;

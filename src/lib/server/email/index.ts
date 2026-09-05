@@ -21,6 +21,7 @@ export {
 	generateRescheduleEmail,
 	generateAdminRescheduleEmail,
 	generateReminderEmail,
+	generateReminderText,
 	getDefaultReminderSubject,
 	generateAdminNotificationEmail
 } from './templates';
@@ -36,6 +37,7 @@ import {
 	generateRescheduleEmail,
 	generateAdminRescheduleEmail,
 	generateReminderEmail,
+	generateReminderText,
 	getDefaultReminderSubject,
 	generateAdminNotificationEmail
 } from './templates';
@@ -145,6 +147,7 @@ export async function sendReminderEmail(
 	customSubject?: string
 ): Promise<void> {
 	const htmlBody = generateReminderEmail(data, reminderType);
+	const textBody = generateReminderText(data, reminderType);
 	const subject = customSubject
 		? replaceSubjectVariables(customSubject, data)
 		: getDefaultReminderSubject(data, reminderType);
@@ -156,7 +159,8 @@ export async function sendReminderEmail(
 			to: data.attendeeEmail,
 			replyTo: config.replyTo,
 			subject,
-			html: htmlBody
+			html: htmlBody,
+			text: textBody
 		}, 'reminder email');
 	} catch (error) {
 		console.error('Reminder email error:', error);

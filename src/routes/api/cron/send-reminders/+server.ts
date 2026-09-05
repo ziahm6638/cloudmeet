@@ -31,7 +31,7 @@ export const GET = async ({ url, platform }: RequestEvent) => {
 				SELECT se.id, se.booking_id, se.template_type, se.scheduled_for,
 					b.attendee_name, b.attendee_email, b.start_time, b.end_time, b.meeting_url, b.status,
 					e.name as event_name, e.description as event_description, e.location_type,
-					u.id as user_id, u.name as host_name, u.email as host_email, u.contact_email, u.settings, u.brand_color
+					u.id as user_id, u.name as host_name, u.email as host_email, u.contact_email, u.settings, u.brand_color, u.timezone
 				FROM scheduled_emails se
 				JOIN bookings b ON se.booking_id = b.id
 				JOIN event_types e ON b.event_type_id = e.id
@@ -63,6 +63,7 @@ export const GET = async ({ url, platform }: RequestEvent) => {
 				contact_email: string | null;
 				settings: string | null;
 				brand_color: string | null;
+				timezone: string | null;
 			}>();
 
 		const results = {
@@ -107,9 +108,11 @@ export const GET = async ({ url, platform }: RequestEvent) => {
 				if (env.RESEND_API_KEY) {
 					// Parse user settings for time format
 					let timeFormat: '12h' | '24h' = '12h';
+					let senderName: string | undefined;
 					try {
 						const settings = email.settings ? JSON.parse(email.settings) : {};
 						timeFormat = settings.timeFormat === '24h' ? '24h' : '12h';
+						senderName = settings.senderName || undefined;
 					} catch {
 						// Keep default
 					}
@@ -128,11 +131,15 @@ export const GET = async ({ url, platform }: RequestEvent) => {
 							meetingType: (email.location_type === 'meet' ? 'meet' : 'google_meet') as 'google_meet' | 'teams' | 'meet',
 							bookingId: email.booking_id,
 							hostName: email.host_name,
+							senderName,
 							hostEmail: email.host_email,
 							hostContactEmail: email.contact_email || undefined,
 							appUrl: env.APP_URL || '',
 							customMessage: template?.custom_message,
 							timeFormat,
+							// Without this the reminder formats times in UTC, so a 3pm
+							// London meeting reads as 2pm through British Summer Time.
+							timezone: email.timezone || 'UTC',
 							brandColor: email.brand_color || undefined
 						},
 						email.template_type as 'reminder_24h' | 'reminder_1h' | 'reminder_30m',
