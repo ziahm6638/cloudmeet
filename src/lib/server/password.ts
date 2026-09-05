@@ -5,7 +5,9 @@
  * Stored format: pbkdf2$sha256$<iterations>$<salt-b64>$<hash-b64>
  */
 
-const ITERATIONS = 210_000;
+// Workers rejects PBKDF2 above 100,000 iterations with NotSupportedError,
+// so this is the ceiling rather than a tuning choice.
+const ITERATIONS = 100_000;
 const KEY_LENGTH = 32; // bytes
 const SALT_LENGTH = 16; // bytes
 
@@ -93,12 +95,20 @@ export async function verifyPassword(
 		return false;
 	}
 
+	if (iterations > ITERATIONS) {
+		// Would throw NotSupportedError on Workers; surface it rather than
+		// reporting it as a wrong password.
+		console.error(`Stored hash uses ${iterations} PBKDF2 iterations, above the ${ITERATIONS} Workers limit`);
+		return false;
+	}
+
 	try {
 		const salt = fromBase64(parts[3]);
 		const expected = fromBase64(parts[4]);
 		const actual = await derive(password, salt, iterations);
 		return timingSafeEqual(actual, expected);
-	} catch {
+	} catch (err) {
+		console.error('Password verification failed:', err);
 		return false;
 	}
 }
