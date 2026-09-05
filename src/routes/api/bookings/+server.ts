@@ -30,9 +30,16 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 			notes?: string;
 			turnstileToken?: string;
 			timezone?: string;
+			crm?: { companyId?: string; contactId?: string; dealId?: string };
 		};
 		const { eventSlug, startTime, endTime, attendeeName, attendeeCompany, attendeeEmail, notes, turnstileToken, timezone } = body;
 		const company = attendeeCompany?.trim() || null;
+
+		const secret = env.CRM_API_SECRET;
+		const presented = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
+		const fromCrm = Boolean(secret && presented && presented === secret);
+		if (body.crm && !fromCrm) throw error(401, 'CRM linkage requires authorisation');
+		const crm = fromCrm ? body.crm : undefined;
 		const attendeeLabel = company ? `${attendeeName} (${company})` : attendeeName;
 		const attendeeLine = `Attendee: ${attendeeName}${company ? ` — ${company}` : ''} (${attendeeEmail})`;
 
@@ -247,13 +254,15 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 		}
 
 		// Create booking in database
-		const result = await db
+		const inserted = await db
 			.prepare(
 				`INSERT INTO bookings (
 					user_id, event_type_id, start_time, end_time,
 					attendee_name, attendee_company, attendee_email, attendee_notes, status,
-					google_event_id, outlook_event_id, meeting_url, caldav_event_uid, created_at
-				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'confirmed', ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+					google_event_id, outlook_event_id, meeting_url, caldav_event_uid,
+					crm_company_id, crm_contact_id, crm_deal_id, booked_by, created_at
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'confirmed', ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+				RETURNING id`
 			)
 			.bind(
 				user.id,
@@ -267,9 +276,16 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 				googleEventId,
 				outlookEventId,
 				meetingUrl,
-				caldavEventUid
+				caldavEventUid,
+				crm?.companyId || null,
+				crm?.contactId || null,
+				crm?.dealId || null,
+				fromCrm ? 'rep' : 'self_serve'
 			)
-			.run();
+			.first<{ id: string }>();
+
+		const bookingId = inserted?.id;
+		if (!bookingId) throw error(500, 'Booking was not recorded');
 
 		// Invalidate availability cache (day + month)
 		await invalidateAvailabilityCache(env.KV, eventSlug, [startDateTime.toISOString()]);
@@ -289,13 +305,6 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 
 				// Use contact email for reply-to if available
 				const replyToEmail = user.contact_email || user.email;
-
-				// Get the booking ID (it's a UUID string, not integer)
-				const bookingResult = await db
-					.prepare('SELECT id FROM bookings WHERE google_event_id = ? OR outlook_event_id = ? OR (user_id = ? AND start_time = ? AND attendee_email = ?)')
-					.bind(googleEventId, outlookEventId, user.id, startTime, attendeeEmail)
-					.first<{ id: string }>();
-				const bookingId = bookingResult?.id || result.meta.last_row_id?.toString() || '';
 
 				// Get email templates to check if confirmation is enabled
 				const templates = await getEmailTemplates(db, user.id);
@@ -373,7 +382,7 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 
 		return json({
 			success: true,
-			bookingId: result.meta.last_row_id,
+			bookingId,
 			meetingUrl,
 			meetingType: usesMeetRoom ? 'meet' : inviteCalendar === 'outlook' ? 'teams' : 'google_meet'
 		});
