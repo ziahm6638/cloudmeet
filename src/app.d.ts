@@ -22,6 +22,7 @@ declare global {
 				EMAIL_FROM?: string;
 				TURNSTILE_SECRET_KEY?: string;
 				CRON_SECRET?: string;
+				CRM_API_SECRET?: string;
 				NEXTCLOUD_URL?: string;
 				NEXTCLOUD_USERNAME?: string;
 				NEXTCLOUD_APP_PASSWORD?: string;

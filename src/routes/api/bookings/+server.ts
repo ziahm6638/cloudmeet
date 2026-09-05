@@ -25,12 +25,23 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 			startTime: string;
 			endTime: string;
 			attendeeName: string;
+			attendeeCompany?: string;
 			attendeeEmail: string;
 			notes?: string;
 			turnstileToken?: string;
 			timezone?: string;
+			crm?: { companyId?: string; contactId?: string; dealId?: string };
 		};
-		const { eventSlug, startTime, endTime, attendeeName, attendeeEmail, notes, turnstileToken, timezone } = body;
+		const { eventSlug, startTime, endTime, attendeeName, attendeeCompany, attendeeEmail, notes, turnstileToken, timezone } = body;
+		const company = attendeeCompany?.trim() || null;
+
+		const secret = env.CRM_API_SECRET;
+		const presented = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
+		const fromCrm = Boolean(secret && presented && presented === secret);
+		if (body.crm && !fromCrm) throw error(401, 'CRM linkage requires authorisation');
+		const crm = fromCrm ? body.crm : undefined;
+		const attendeeLabel = company ? `${attendeeName} (${company})` : attendeeName;
+		const attendeeLine = `Attendee: ${attendeeName}${company ? ` — ${company}` : ''} (${attendeeEmail})`;
 
 		// Validate required fields
 		if (!eventSlug || !startTime || !endTime || !attendeeName || !attendeeEmail) {
@@ -40,6 +51,7 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 		// Validate input lengths
 		const lengthError = validateFields([
 			validateLength(attendeeName, 'Name', MAX_LENGTHS.name, true),
+			validateLength(company ?? undefined, 'Company', MAX_LENGTHS.company, false),
 			validateLength(attendeeEmail, 'Email', MAX_LENGTHS.email, true),
 			validateLength(notes, 'Notes', MAX_LENGTHS.notes, false)
 		]);
@@ -144,7 +156,7 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 			meetingUrl = eventType.location_details; // permanent room as fallback
 			if (isMeetConfigured(env)) {
 				try {
-					const room = await createMeetRoom(env, `${eventType.name} with ${attendeeName}`);
+					const room = await createMeetRoom(env, `${eventType.name} with ${attendeeLabel}`);
 					meetingUrl = room.url;
 				} catch (err) {
 					console.error('Meet room creation failed; using permanent room:', err);
@@ -161,8 +173,8 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 				);
 
 				const calendarEvent = await createCalendarEvent(accessToken, {
-					summary: `${eventType.name} with ${attendeeName}`,
-					description: `${eventType.description || ''}\n\nAttendee: ${attendeeName} (${attendeeEmail})${notes ? `\n\nNotes from attendee:\n${notes}` : ''}`,
+					summary: `${eventType.name} with ${attendeeLabel}`,
+					description: `${eventType.description || ''}\n\n${attendeeLine}${notes ? `\n\nNotes from attendee:\n${notes}` : ''}`,
 					start: {
 						dateTime: startDateTime.toISOString(),
 						timeZone: 'UTC'
@@ -199,8 +211,8 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 				);
 
 				const outlookEvent = await createOutlookCalendarEvent(outlookToken, {
-					summary: `${eventType.name} with ${attendeeName}`,
-					description: `${eventType.description || ''}\n\nAttendee: ${attendeeName} (${attendeeEmail})${notes ? `\n\nNotes from attendee:\n${notes}` : ''}`,
+					summary: `${eventType.name} with ${attendeeLabel}`,
+					description: `${eventType.description || ''}\n\n${attendeeLine}${notes ? `\n\nNotes from attendee:\n${notes}` : ''}`,
 					startTime: startDateTime.toISOString(),
 					endTime: endDateTime.toISOString(),
 					attendeeEmail,
@@ -225,8 +237,8 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 			try {
 				caldavEventUid = await createCalDAVEvent(caldavConfig, {
 					uid: crypto.randomUUID(),
-					title: `${eventType.name} with ${attendeeName}`,
-					description: `${meetingUrl ? `Join the video call: ${meetingUrl}\n\n` : ''}${eventType.description || ''}\n\nAttendee: ${attendeeName} (${attendeeEmail})${notes ? `\n\nNotes from attendee:\n${notes}` : ''}`,
+					title: `${eventType.name} with ${attendeeLabel}`,
+					description: `${meetingUrl ? `Join the video call: ${meetingUrl}\n\n` : ''}${eventType.description || ''}\n\n${attendeeLine}${notes ? `\n\nNotes from attendee:\n${notes}` : ''}`,
 					location: meetingUrl,
 					startTime: startDateTime,
 					endTime: endDateTime,
@@ -242,13 +254,15 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 		}
 
 		// Create booking in database
-		const result = await db
+		const inserted = await db
 			.prepare(
 				`INSERT INTO bookings (
 					user_id, event_type_id, start_time, end_time,
-					attendee_name, attendee_email, attendee_notes, status,
-					google_event_id, outlook_event_id, meeting_url, caldav_event_uid, created_at
-				) VALUES (?, ?, ?, ?, ?, ?, ?, 'confirmed', ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+					attendee_name, attendee_company, attendee_email, attendee_notes, status,
+					google_event_id, outlook_event_id, meeting_url, caldav_event_uid,
+					crm_company_id, crm_contact_id, crm_deal_id, booked_by, created_at
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'confirmed', ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+				RETURNING id`
 			)
 			.bind(
 				user.id,
@@ -256,14 +270,22 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 				startTime,
 				endTime,
 				attendeeName,
+				company,
 				attendeeEmail,
 				notes || null,
 				googleEventId,
 				outlookEventId,
 				meetingUrl,
-				caldavEventUid
+				caldavEventUid,
+				crm?.companyId || null,
+				crm?.contactId || null,
+				crm?.dealId || null,
+				fromCrm ? 'rep' : 'self_serve'
 			)
-			.run();
+			.first<{ id: string }>();
+
+		const bookingId = inserted?.id;
+		if (!bookingId) throw error(500, 'Booking was not recorded');
 
 		// Invalidate availability cache (day + month)
 		await invalidateAvailabilityCache(env.KV, eventSlug, [startDateTime.toISOString()]);
@@ -283,13 +305,6 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 
 				// Use contact email for reply-to if available
 				const replyToEmail = user.contact_email || user.email;
-
-				// Get the booking ID (it's a UUID string, not integer)
-				const bookingResult = await db
-					.prepare('SELECT id FROM bookings WHERE google_event_id = ? OR outlook_event_id = ? OR (user_id = ? AND start_time = ? AND attendee_email = ?)')
-					.bind(googleEventId, outlookEventId, user.id, startTime, attendeeEmail)
-					.first<{ id: string }>();
-				const bookingId = bookingResult?.id || result.meta.last_row_id?.toString() || '';
 
 				// Get email templates to check if confirmation is enabled
 				const templates = await getEmailTemplates(db, user.id);
@@ -367,7 +382,7 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 
 		return json({
 			success: true,
-			bookingId: result.meta.last_row_id,
+			bookingId,
 			meetingUrl,
 			meetingType: usesMeetRoom ? 'meet' : inviteCalendar === 'outlook' ? 'teams' : 'google_meet'
 		});
