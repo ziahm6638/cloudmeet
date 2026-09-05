@@ -41,6 +41,7 @@
 	let showForm = $state(false);
 	let bookingForm = $state({
 		name: '',
+		company: '',
 		email: '',
 		notes: ''
 	});
@@ -230,6 +231,7 @@
 					startTime: selectedSlot?.start,
 					endTime: selectedSlot?.end,
 					attendeeName: bookingForm.name,
+					attendeeCompany: bookingForm.company,
 					attendeeEmail: bookingForm.email,
 					notes: bookingForm.notes,
 					timezone: selectedTimezone
@@ -483,6 +485,18 @@
 								id="mobile-name"
 								bind:value={bookingForm.name}
 								required
+								class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent outline-none text-sm"
+								style="--tw-ring-color: var(--brand-color)"
+							/>
+						</div>
+						<div>
+							<label for="mobile-company" class="block text-sm font-medium text-gray-700 mb-1.5">Company *</label>
+							<input
+								type="text"
+								id="mobile-company"
+								bind:value={bookingForm.company}
+								required
+								autocomplete="organization"
 								class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent outline-none text-sm"
 								style="--tw-ring-color: var(--brand-color)"
 							/>

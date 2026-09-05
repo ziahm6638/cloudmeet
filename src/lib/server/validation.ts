@@ -10,6 +10,7 @@ import validator from 'validator';
  */
 export const MAX_LENGTHS = {
 	name: 100,
+	company: 200,
 	email: 254, // RFC 5321 maximum
 	description: 5000,
 	notes: 1000,
